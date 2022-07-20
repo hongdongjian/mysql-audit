@@ -589,18 +589,18 @@ static void yajl_add_uint64(yajl_gen gen, const char *name, uint64 num)
 	yajl_add_string_val(gen, name, buf);
 }
 
-static void yajl_add_obj(yajl_gen gen, const char *db, const char *ptype, const char *name = NULL)
-{
-	if (db)
-	{
-		yajl_add_string_val(gen, "db", db);
-	}
-	if (name)
-	{
-		yajl_add_string_val(gen, "name", name);
-	}
-	yajl_add_string_val(gen, "obj_type", ptype);
-}
+//static void yajl_add_obj(yajl_gen gen, const char *db, const char *ptype, const char *name = NULL)
+//{
+//	if (db)
+//	{
+//		yajl_add_string_val(gen, "db", db);
+//	}
+//	if (name)
+//	{
+//		yajl_add_string_val(gen, "name", name);
+//	}
+//	yajl_add_string_val(gen, "obj_type", ptype);
+//}
 
 static const char *retrieve_user(THD *thd)
 {
@@ -944,7 +944,7 @@ ssize_t Audit_json_formatter::event_format(ThdSesData *pThdData, IWriter *writer
 	yajl_set_thd_alloc_funcs(thd, &alloc_funcs);
 	yajl_gen gen = yajl_gen_alloc(&alloc_funcs);
 	yajl_gen_map_open(gen);
-	yajl_add_string_val(gen, "msg-type", "activity");
+//	yajl_add_string_val(gen, "msg-type", "activity");
 	// TODO: get the start date from THD (but it is not in millis. Need to think about how we handle this)
 	// for now simply use the current time.
 	// my_getsystime() time since epoc in 100 nanosec units. Need to devide by 1000*(1000/100) to reach millis
@@ -953,7 +953,7 @@ ssize_t Audit_json_formatter::event_format(ThdSesData *pThdData, IWriter *writer
 	yajl_add_uint64(gen, "thread-id", thdid);
 	yajl_add_uint64(gen, "query-id", qid);
 	yajl_add_string_val(gen, "user", pThdData->getUserName());
-	yajl_add_string_val(gen, "priv_user", Audit_formatter::thd_inst_main_security_ctx_priv_user(thd));
+//	yajl_add_string_val(gen, "priv_user", Audit_formatter::thd_inst_main_security_ctx_priv_user(thd));
 	yajl_add_string_val(gen, "ip", Audit_formatter::thd_inst_main_security_ctx_ip(thd));
 
 	// For backwards compatibility, we always send "host".
@@ -996,41 +996,39 @@ ssize_t Audit_json_formatter::event_format(ThdSesData *pThdData, IWriter *writer
 			}
 		}
 	}
-	else if (pThdData->getPort() > 0)		// TCP socket
-	{
-		yajl_add_uint64(gen, "client_port", pThdData->getPort());
-	}
+//	else if (pThdData->getPort() > 0)		// TCP socket
+//	{
+//		yajl_add_uint64(gen, "client_port", pThdData->getPort());
+//	}
 
-	const char *cmd = pThdData->getCmdName();
-	ulonglong rows = 0;
+    const char *cmd = pThdData->getCmdName();
+    ulonglong sent_rows = 0;
+    if (pThdData->getStatementSource() == ThdSesData::SOURCE_QUERY_CACHE)
+    {
+        // from the query cache
+        sent_rows = thd_found_rows(thd);
+    } else {
+        sent_rows = thd_sent_row_count(thd);
+    }
+    yajl_add_uint64(gen, "sent_rows", sent_rows);
 
-	if (pThdData->getStatementSource() == ThdSesData::SOURCE_QUERY_CACHE)
-	{
-		// from the query cache
-		rows = thd_found_rows(thd);
-	}
-	else if (strcasestr(cmd, "insert") != NULL ||
-		 strcasestr(cmd, "update") != NULL ||
-		 strcasestr(cmd, "delete") != NULL ||
-	         (strcasestr(cmd, "select") != NULL && thd_row_count_func(thd) > 0))
-	{
-		// m_row_count_func will be -1 for most selects but can be > 0, e.g. select into file
-		// thd_row_count_func() returns signed valiue. Don't assign it to rows directly.
-		longlong row_count = thd_row_count_func(thd);
-		if (row_count > 0)
-		{
-			rows = row_count;
-		}
-	}
-	else
-	{
-		rows = thd_sent_row_count(thd);
-	}
+    ulonglong affected_rows = 0;
+    if (strcasestr(cmd, "insert") != NULL ||
+            strcasestr(cmd, "update") != NULL ||
+            strcasestr(cmd, "delete") != NULL)
+    {
+        // m_row_count_func will be -1 for most selects but can be > 0, e.g. select into file
+        // thd_row_count_func() returns signed valiue. Don't assign it to rows directly.
+        longlong row_count = thd_row_count_func(thd);
+        if (row_count > 0)
+        {
+            affected_rows = row_count;
+        }
+    }
+    yajl_add_uint64(gen, "affected_rows", affected_rows);
 
-	if (rows != 0UL)
-	{
-		yajl_add_uint64(gen, "rows", rows);
-	}
+    ulonglong examined_rows = thd_examined_row_count(thd);
+    yajl_add_uint64(gen, "examined_rows", examined_rows);
 
 	uint code;
 	if (pThdData->getErrorCode(code))
@@ -1040,22 +1038,25 @@ ssize_t Audit_json_formatter::event_format(ThdSesData *pThdData, IWriter *writer
 
 	yajl_add_string_val(gen, "cmd", cmd);
 
+    const char *db_name = "";
 	// get objects
 	if (pThdData->startGetObjects())
 	{
-		yajl_add_string(gen, "objects");
-		yajl_gen_array_open(gen);
-		const char *db_name = NULL;
+//		const char *db_name = NULL;
 		const char *obj_name = NULL;
 		const char *obj_type = NULL;
-		while (pThdData->getNextObject(&db_name, &obj_name, &obj_type))
-		{
-			yajl_gen_map_open(gen);
-			yajl_add_obj (gen, db_name, obj_type, obj_name );
-			yajl_gen_map_close(gen);
-		}
-		yajl_gen_array_close(gen);
+        pThdData->getNextObject(&db_name, &obj_name, &obj_type);
+//		yajl_add_string(gen, "objects");
+//		yajl_gen_array_open(gen);
+//		while (pThdData->getNextObject(&db_name, &obj_name, &obj_type))
+//		{
+//			yajl_gen_map_open(gen);
+//			yajl_add_obj (gen, db_name, obj_type, obj_name );
+//			yajl_gen_map_close(gen);
+//		}
+//		yajl_gen_array_close(gen);
 	}
+    yajl_add_string_val(gen, "db_name", db_name);
 
 	size_t qlen = 0;
 	const char *query = thd_query_str(pThdData->getTHD(), &qlen);
@@ -1165,7 +1166,7 @@ ssize_t Audit_json_formatter::event_format(ThdSesData *pThdData, IWriter *writer
 		size_t len = 0;
 		yajl_gen_get_buf(gen, &text, &len);
 		// print the json
-		res = writer->write((const char *)text, len);		
+		res = writer->write((const char *)text, len);
 	}
 	yajl_gen_free(gen); // free the generator
 	return res;

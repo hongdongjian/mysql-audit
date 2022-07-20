@@ -101,6 +101,13 @@ else
 	ROW_COUNT_FUNC='print_offset THD m_row_count_func'
 fi
 
+if echo $MYVER | grep -P '^5\.[15]' > /dev/null
+then
+	EXAMINED_ROW_COUNT='print_offset THD examined_row_count'
+else
+	EXAMINED_ROW_COUNT="print_offset THD m_examined_row_count"
+fi
+
 LEX_SQL=""
 if [ -n "$HAS_LEX_SQL_CMD" ]
 then
@@ -171,6 +178,7 @@ $STMT_DA
 $DA_STATUS
 $DA_SQL_ERRNO
 $VIEW_TABLES
+$EXAMINED_ROW_COUNT
 printf "}"
 EOF
 
