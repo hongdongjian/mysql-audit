@@ -16,10 +16,10 @@ AC_DEFUN([CHECK_DEBUG], [
         AC_MSG_CHECKING(whether to enable debugging)
 
         if test "x$enable_debug" = "xyes"; then
-        CPPFLAGS="$CPPFLAGS -g -D_DEBUG"
+        CPPFLAGS="$CPPFLAGS -g -D_DEBUG -DNDEBUG"
                 AC_MSG_RESULT(yes)
         else
-        		CPPFLAGS="$CPPFLAGS -g -O2 -DDBUG_OFF"
+        		CPPFLAGS="$CPPFLAGS -g -O2 -DDBUG_OFF -DNDEBUG"
                 AC_MSG_RESULT(no)
 		fi
 
@@ -110,10 +110,10 @@ AC_TYPE_SIZE_T
 
 #version stuff
 if test -z "$MYSQL_AUDIT_PLUGIN_VERSION" ;then
-	MYSQL_AUDIT_PLUGIN_VERSION=1.0.0
+	MYSQL_AUDIT_PLUGIN_VERSION=mysql
 fi
 if test -z "$MYSQL_AUDIT_PLUGIN_REVISION" ;then
-	MYSQL_AUDIT_PLUGIN_REVISION=99999
+	MYSQL_AUDIT_PLUGIN_REVISION=0
 fi
 if test -z "$MYSQL_AUDIT_PLUGIN_SYMBOL_VERSION" ;then
         MYSQL_AUDIT_PLUGIN_SYMBOL_VERSION=${MYSQL_AUDIT_PLUGIN_VERSION//./_}_$MYSQL_AUDIT_PLUGIN_REVISION

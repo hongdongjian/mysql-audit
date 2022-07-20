@@ -105,6 +105,7 @@ typedef struct ThdOffsets {
 	OFFSET da_status;
 	OFFSET da_sql_errno;
 	OFFSET view_tables;
+    OFFSET examined_row_count;
 } ThdOffsets;
 
 /*
@@ -422,14 +423,14 @@ public:
 		}
 		return *(uint *) (((unsigned char *) pfs) + Audit_formatter::thd_offsets.pfs_connect_attrs_length);
 	}
-  
+
 static inline const CHARSET_INFO * pfs_connect_attrs_cs(const void * pfs)
 {
 	if (! Audit_formatter::thd_offsets.pfs_connect_attrs_cs || pfs == NULL)
 	{
 		//no offsets - return null
 		return NULL;
-	}    
+	}
 #if (!defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID >= 50600) || (defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID >= 100010)
 	/**
 	 * m_session_connect_attrs_cs changed to: m_session_connect_attrs_cs_number
@@ -455,7 +456,7 @@ static inline const CHARSET_INFO * pfs_connect_attrs_cs(const void * pfs)
 		{
 			return NULL;
 
-		} 
+		}
 		return get_charset(cs_number, MYF(0));
 	}
 	else
@@ -525,6 +526,19 @@ static inline const CHARSET_INFO * pfs_connect_attrs_cs(const void * pfs)
 
 		return *rows;
 	}
+
+    static inline longlong thd_examined_row_count(THD *thd)
+    {
+        if (Audit_formatter::thd_offsets.examined_row_count == 0)
+        {
+            return -1;
+        }
+
+        longlong *rows = ((longlong *) (((unsigned char *) thd)
+                                        + Audit_formatter::thd_offsets.examined_row_count));
+
+        return *rows;
+    }
 
 	static inline bool thd_error_code(THD *thd, uint & code)
 	{
@@ -655,7 +669,7 @@ public:
 	 * Public so sysvar can update.
 	 */
 	my_bool m_write_start_msg;
-	
+
 	/**
 	 * include session oonnect attributes
 	 * Public so sysvar can update
@@ -833,11 +847,11 @@ protected:
 	// creating additional instances
 	Audit_handler & operator=(const Audit_handler&);
 	Audit_handler(const Audit_handler&);
-	// lock io 
+	// lock io
 	pthread_mutex_t LOCK_io;
 private:
 	// bool indicating if to print offset errors to log or not
-	bool m_print_offset_err;	
+	bool m_print_offset_err;
 	// audit (enable) lock
 	rw_lock_t LOCK_audit;
 	inline void lock_shared()
@@ -873,14 +887,14 @@ public:
 	 * target we write to (socket/file). Public so we update via sysvar
 	 */
 	char *m_io_dest;
-	
-	inline ssize_t write(const char *data, size_t size) 
+
+	inline ssize_t write(const char *data, size_t size)
 	{
 		pthread_mutex_lock(&LOCK_io);
 		ssize_t res = write_no_lock(data, size);
 		pthread_mutex_unlock(&LOCK_io);	//release the IO lock
 		return res;
-	}		
+	}
 
 protected:
 	/**
@@ -937,7 +951,7 @@ protected:
 	// additional instances
 	Audit_file_handler & operator=(const Audit_file_handler&);
 	Audit_file_handler(const Audit_file_handler&);
-	
+
 	FILE *m_log_file;
 	// the period to use for syncing
 	unsigned int m_sync_counter;
@@ -979,7 +993,7 @@ protected:
 	// override default assignment and copy to protect against creating additional instances
 	Audit_socket_handler & operator=(const Audit_socket_handler&);
 	Audit_socket_handler(const Audit_socket_handler&);
-	
+
 	// Vio we write to
 	// define as void* so we don't access members directly
 	void *m_vio;

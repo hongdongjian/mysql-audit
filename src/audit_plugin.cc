@@ -943,7 +943,7 @@ void remove_hot_functions()
 
 int is_remove_patches(ThdSesData *pThdData)
 {
-	static bool called_once = false;
+//	static bool called_once = false;
 	const char *cmd = pThdData->getCmdName();
 	const char *sUninstallPlugin = "uninstall_plugin";
 	LEX *pLex = Audit_formatter::thd_lex(pThdData->getTHD());
@@ -968,13 +968,13 @@ int is_remove_patches(ThdSesData *pThdData)
 			Audit_handler::stop_all();
 			remove_hot_functions();
 
-			if (! called_once)
-			{
-				called_once = true;
-				sprintf(msgBuffer, "Uninstall %s plugin must be called again to complete", PLUGIN_NAME);
-				my_message(WARN_PLUGIN_BUSY, msgBuffer, MYF(0));
-				return 2;
-			}
+//			if (! called_once)
+//			{
+//				called_once = true;
+//				sprintf(msgBuffer, "Uninstall %s plugin must be called again to complete", PLUGIN_NAME);
+//				my_message(WARN_PLUGIN_BUSY, msgBuffer, MYF(0));
+//				return 2;
+//			}
 			return 1;
 		}
 	}
@@ -1340,7 +1340,9 @@ static int setup_offsets()
 	const ThdOffsets *offset;
 
 	// setup digest_str to contain the md5sum in hex
-	calc_file_md5(my_progname, digest_str);
+    if (validate_checksum_enable || (offsets_string != NULL && checksum_string != NULL && strlen(checksum_string) > 0)) {
+        calc_file_md5(my_progname, digest_str);
+    }
 
 	sql_print_information(
 			"%s mysqld: %s (%s) ", log_prefix, my_progname, digest_str);
@@ -2364,7 +2366,7 @@ static void json_log_socket_enable(THD *thd, SYS_VAR *var,
 
 static MYSQL_SYSVAR_BOOL(socket_creds, json_formatter.m_write_socket_creds,
              PLUGIN_VAR_RQCMDARG,
-        "AUDIT log socket credentials from Unix Domain Socket. Enable|Disable. Default enabled.", NULL, NULL, 1);
+        "AUDIT log socket credentials from Unix Domain Socket. Enable|Disable. Default enabled.", NULL, NULL, 0);
 
 static MYSQL_SYSVAR_BOOL(client_capabilities, json_formatter.m_write_client_capabilities,
              PLUGIN_VAR_RQCMDARG,
@@ -2373,12 +2375,12 @@ static MYSQL_SYSVAR_BOOL(client_capabilities, json_formatter.m_write_client_capa
 #ifdef HAVE_SESS_CONNECT_ATTRS
 static MYSQL_SYSVAR_BOOL(sess_connect_attrs, json_formatter.m_write_sess_connect_attrs,
              PLUGIN_VAR_RQCMDARG,
-        "AUDIT log session connect attributes (see: performance_schema.session_connect_attrs table). Enable|Disable. Default enabled.", NULL, NULL, 1);
+        "AUDIT log session connect attributes (see: performance_schema.session_connect_attrs table). Enable|Disable. Default enabled.", NULL, NULL, 0);
 #endif
 		
 static MYSQL_SYSVAR_BOOL(header_msg, json_formatter.m_write_start_msg,
              PLUGIN_VAR_RQCMDARG,
-        "AUDIT write header message at start of logging or file flush Enable|Disable. Default enabled.", NULL, NULL, 1);
+        "AUDIT write header message at start of logging or file flush Enable|Disable. Default enabled.", NULL, NULL, 0);
 
 static MYSQL_SYSVAR_BOOL(force_record_logins, force_record_logins_enable,
              PLUGIN_VAR_RQCMDARG,
@@ -2448,7 +2450,7 @@ static MYSQL_SYSVAR_STR(password_masking_regex, password_masking_regex_string,
 
 static MYSQL_SYSVAR_BOOL(uninstall_plugin, uninstall_plugin_enable,
         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY ,
-        "AUDIT uninstall plugin Enable|Disable. Default disabled. If disabled attempts to uninstall the AUDIT plugin via the sql UNINSTALL command will fail.", NULL, NULL, 0);
+        "AUDIT uninstall plugin Enable|Disable. Default disabled. If disabled attempts to uninstall the AUDIT plugin via the sql UNINSTALL command will fail.", NULL, NULL, 1);
 
 
 static MYSQL_SYSVAR_BOOL(offsets_by_version, offsets_by_version_enable,
@@ -2457,7 +2459,7 @@ static MYSQL_SYSVAR_BOOL(offsets_by_version, offsets_by_version_enable,
 
 static MYSQL_SYSVAR_BOOL(validate_checksum, validate_checksum_enable,
         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY ,
-        "AUDIT plugin binary checksum validation Enable|Disable", NULL, NULL, 1);
+        "AUDIT plugin binary checksum validation Enable|Disable", NULL, NULL, 0);
 
 
 static MYSQL_SYSVAR_BOOL(validate_offsets_extended, validate_offsets_extended_enable,
@@ -2480,7 +2482,7 @@ static MYSQL_SYSVAR_STR(delay_cmds, delay_cmds_string,
 static MYSQL_SYSVAR_STR(whitelist_cmds, whitelist_cmds_string,
 			PLUGIN_VAR_RQCMDARG,
 			"AUDIT plugin whitelisted commands for which queries are not recorded, comma separated",
-			NULL, whitelist_cmds_string_update, "BEGIN,COMMIT,PING");
+			NULL, whitelist_cmds_string_update, "PING");
 static MYSQL_SYSVAR_STR(record_cmds, record_cmds_string,
 			PLUGIN_VAR_RQCMDARG,
 			"AUDIT plugin commands for which queries are recorded, comma separated. If set then only queries of these commands will be recorded.",
